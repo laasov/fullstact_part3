@@ -38,14 +38,14 @@ app.get('/info', (req, res) => {
         })
 })
 
-app.post('/api/persons', (req, res) => {
+app.post('/api/persons', (req, res, next) => {
     const body = req.body
 
-    if (!body.name || !body.number)  {
+    /* if (!body.name || !body.number)  {
         return res.status(400).json({ 
           error: 'Name or number missing' 
         })
-    }
+    } */
 
     const record = new Person({
             name: body.name,
@@ -58,6 +58,7 @@ app.post('/api/persons', (req, res) => {
             res.json(saved)
             console.log("Successfully added new person")
         })
+        .catch(error => next(error))
 })
 
 app.get('/api/persons', (req, res) => {
@@ -72,19 +73,23 @@ app.get('/api/persons/:id', (req, res) => {
         .then(person => person ? res.json(person) : res.status(404).end())
 })
 
+app.put('/api/persons/:id', (req, res, next) => {
+    const id = req.params.id
+    const body = req.body
+    const data = {name: body.name, number: body.number}
+    const newOpt = {new: true}
+    const validateOpt = {runValidators: true}
+
+    Person
+        .findOneAndUpdate({_id: id}, data, validateOpt)
+        .then(updated => res.json(updated))
+        .catch(error => next(error))
+})
+
 app.delete('/api/persons/:id', (req, res) => {
     Person
         .findByIdAndDelete(req.params.id)
         .then(result => res.status(204).end())
-        .catch(error => next(error))
-})
-
-app.put('/api/persons/:id', (req, res) => {
-    const body = req.body
-    const data = {name: body.name, number: body.number}
-    Person
-        .findByIdAndUpdate(req.params.id, data, {new: true})
-        .then(updated => res.json(updated))
         .catch(error => next(error))
 })
 
@@ -94,17 +99,20 @@ const unknownEndpoint = (request, response) => {
 
 app.use(unknownEndpoint)
 
-const badId = (error, request, response, next) => {
+const errorHandler = (error, request, response, next) => {
     console.error(error.message)
 
     if (error.name === 'CastError') {
-      return response.status(400).send({ error: 'bad id' })
+        return response.status(400).send({ error: 'bad request' })
+    }
+    if (error.name === 'ValidationError') {
+        return response.status(400).json({ error: error.message })
     }
 
     next(error)
 }
 
-app.use(badId)
+app.use(errorHandler)
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
