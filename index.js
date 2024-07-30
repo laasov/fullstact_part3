@@ -1,6 +1,7 @@
 const express = require('express')
 const morgan = require('morgan')
 const cors = require('cors')
+const Person = require('./models/person')
 
 morgan.token('body', function getBody (req) {
     if (req.method === 'POST') {
@@ -52,12 +53,7 @@ app.get('/info', (req, res) => {
 
 app.post('/api/persons', (req, res) => {
     const body = req.body
-
-    const newId = () => {
-        const tmpId = Math.random() * 10e6
-        const id = Math.round(tmpId)
-        return id
-    }
+    console.log(body)
 
     if (!body.name || !body.number)  {
         return res.status(400).json({ 
@@ -65,39 +61,29 @@ app.post('/api/persons', (req, res) => {
         })
     }
 
-    if (phonebook
-            .map(e => e.name === body.name)
-            .some(e => e === true)
-        ) {
-        return res.status(400).json({ 
-            error: 'Name must be unique' 
-          })
-    }
-    
-    const rec = {
-        id: newId(),
-        name: body.name,
-        number: body.number
-    }
+    const record = new Person({
+            name: body.name,
+            number: body.number
+    })
 
-    phonebook = phonebook.concat(rec)
-    res.json(rec)
-
+    record
+        .save()
+        .then(saved => {
+            res.json(saved)
+            console.log("Successfully added new person")
+        })
 })
 
 app.get('/api/persons', (req, res) => {
-    res.json(phonebook)
+    Person
+        .find({})
+        .then(people => res.json(people))
 })
 
 app.get('/api/persons/:id', (req, res) => {
-    const id = req.params.id
-    const data = phonebook.find(e => e.id === id)
-    if (data) {
-        res.json(data)
-    } else {
-        res.status(404).end()
-    }
-    
+    Person
+        .findById(req.params.id)
+        .then(person => res.json(person))
 })
 
 app.delete('/api/persons/:id', (req, res) => {
